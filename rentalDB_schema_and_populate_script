@@ -1,0 +1,360 @@
+-- Setup Database
+-- Remove the database if it already exists
+DROP DATABASE IF EXISTS rentalDB;
+CREATE DATABASE rentalDB;-- Now create an instance of the rentalDB and declare it as in use
+USE rentalDB;
+
+-- Person Table (Strong Entity)
+CREATE TABLE Person (
+    -- Make the ID a single field that is exactly 5 characters long
+    ID CHAR(5) PRIMARY KEY NOT NULL
+    -- check the ID matches exactly 2 chars and 3 ints
+    CHECK (ID REGEXP '^[A-Za-z]{2}[0-9]{3}$'),
+    fName VARCHAR(100) NOT NULL,
+    lName VARCHAR(100) NOT NULL,
+    -- role not necessary but helps track people
+    role ENUM('student', 'owner', 'property manager') NOT NULL, 
+    phoneNumber VARCHAR(15) UNIQUE NOT NULL
+);
+
+-- Rental Property Table (Strong Entity)
+CREATE TABLE RentalProperty(
+  	PropertyID INT PRIMARY KEY NOT NULL,
+    Street VARCHAR(255) NOT NULL,
+    City VARCHAR(100) NOT NULL,
+    Province VARCHAR(100) NOT NULL,
+    PostalCode VARCHAR(10) NOT NULL,
+    NumberOfBedrooms INT NOT NULL,
+    NumberOfBathrooms INT NOT NULL,
+    Parking ENUM('no', 'yes') NOT NULL,
+    Laundry ENUM('ensuite', 'shared') NOT NULL,
+    Accessibility ENUM('yes', 'no') NOT NULL,
+    ListingDate DATE NOT NULL, 
+    CostPerMonth DECIMAL(10, 2) NOT NULL,
+    -- could derive this from sub tables
+    PropertyType ENUM('house', 'apartment', 'room') NOT NULL
+);
+
+-- Now do Property types inherit features from RentalProperty
+-- Specialization: House, Apartment, Room (Method 1: Separate tables for sub-classes and parent class)
+-- House Table
+CREATE TABLE House(
+    HouseID INT PRIMARY KEY NOT NULL,
+    FOREIGN KEY (HouseID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE,
+    FencedYard ENUM('yes', 'no') NOT NULL,
+    Attached ENUM('detached', 'semi-detached') NOT NULL
+);
+
+-- Apartment Table
+CREATE TABLE Apartment (
+    ApartmentID INT PRIMARY KEY NOT NULL,
+    FOREIGN KEY (ApartmentID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE,
+    Floor INT NOT NULL,
+    Elevator ENUM('yes', 'no') NOT NULL
+);
+
+-- Room Table
+CREATE TABLE Room (
+    RoomID INT PRIMARY KEY NOT NULL,
+    FOREIGN KEY (RoomID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE,
+    NumberOfHousemates INT NOT NULL,
+    KitchenPrivileges ENUM('yes', 'no') NOT NULL,
+    Furnishings TEXT
+);
+
+
+-- Now enter types of people inherited from person parent 
+-- Owner Table (weak entity) related to person and property
+CREATE TABLE Owner(
+    OwnerID CHAR(5) PRIMARY KEY NOT NULL,
+    FOREIGN KEY (OwnerID) REFERENCES Person(ID) ON DELETE CASCADE
+);
+
+-- Property Manager Table (weak entity) related to person and property
+CREATE TABLE PropertyManager(
+    ManagerID CHAR(5) PRIMARY KEY NOT NULL,
+    startYear YEAR NOT NULL,
+    FOREIGN KEY (ManagerID) REFERENCES Person(ID) ON DELETE CASCADE
+);
+
+-- Define the groups
+-- RentalGroup Table (Strong Entity)
+CREATE TABLE RentalGroup (
+   	GroupCode INT PRIMARY KEY NOT NULL
+    CHECK (GroupCode BETWEEN 1000 AND 9999),
+    DesiredPropertyType ENUM('house', 'apartment', 'room'),
+    DesiredNumberOfBedrooms INT,
+    DesiredNumberOfBathrooms INT,
+    ParkingPreference ENUM('yes', 'no'),
+    LaundryPreference ENUM('ensuite', 'shared'),
+    MaxPrice DECIMAL(10, 2),
+    AccessibilityPreference ENUM('yes', 'no')
+);
+
+-- StudentRenter (Weak Entity related to Person and RentalGroup)
+CREATE TABLE StudentRenter(
+    StudentRenterID CHAR(5) PRIMARY KEY NOT NULL,
+    StudentNum INT UNIQUE NOT NULL,
+    ExpectedGraduationYear YEAR NOT NULL,
+    ProgramOfStudy VARCHAR(255) NOT NULL,
+    GroupCode INT NOT NULL,
+    FOREIGN KEY (StudentRenterID) REFERENCES Person(ID) ON DELETE CASCADE,
+    FOREIGN KEY (GroupCode) REFERENCES RentalGroup(GroupCode) ON DELETE CASCADE
+);
+
+-- Now define the relationships
+-- PropertyOwnerRelation Table, many to many, owners and property managers
+CREATE TABLE PropertyOwnerRelation (
+    PropertyID INT,
+    OwnerID CHAR(5),
+    PRIMARY KEY (PropertyID, OwnerID),
+    FOREIGN KEY (PropertyID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE,
+    FOREIGN KEY (OwnerID) REFERENCES Owner(OwnerID) ON DELETE CASCADE
+);
+
+-- Student to Rental Group Relationship
+-- StudentRentalGroupRelation Table, many to one, students to group
+CREATE TABLE StudentRentalGroupRelation (
+    StudentNum INT,
+    GroupCode INT,
+    PRIMARY KEY (StudentNum, GroupCode),
+    FOREIGN KEY (StudentNum) REFERENCES StudentRenter(StudentNum) ON DELETE CASCADE,
+    FOREIGN KEY (GroupCode) REFERENCES RentalGroup(GroupCode) ON DELETE CASCADE
+);
+
+
+-- Property Manager to Rental Property relation
+--  PropertyManagerRentalRelation Table, many to one, properties to manager
+CREATE TABLE PropertyManagerRentalRelation (
+    ManagerID CHAR(5),
+    PropertyID INT,
+    PRIMARY KEY (ManagerID, PropertyID),
+    FOREIGN KEY (ManagerID) REFERENCES PropertyManager(ManagerID) ON DELETE CASCADE,
+    FOREIGN KEY (PropertyID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE
+);
+
+
+-- Now define the rental agreement 
+-- Rental Agreement Table (1:1 Relationship between RentalGroup and RentalProperty)
+CREATE TABLE RentalAgreement (
+    GroupCode INT UNIQUE NOT NULL,
+    PropertyID INT NOT NULL,
+    PRIMARY KEY (GroupCode, PropertyID),
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    MonthlyRent DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (GroupCode) REFERENCES RentalGroup(GroupCode) ON DELETE CASCADE,
+    FOREIGN KEY (PropertyID) REFERENCES RentalProperty(PropertyID) ON DELETE CASCADE
+);
+
+
+
+-- --------------- Insertions -------------------------------------------------
+
+-- Inserting Persons
+-- Owners
+INSERT INTO Person (ID, fName, lName, role, phoneNumber) VALUES
+('OW100', 'Jane', 'Doe', 'owner', '613-000-0100'),
+('OW101', 'Patricia', 'Lee', 'owner', '226-000-0101'),
+('OW102', 'Daren', 'Davis', 'owner', '519-110-0112'),
+('OW103', 'Albert', 'Fynman', 'owner', '519-012-0102'),
+('OW104', 'Linda', 'Green', 'owner', '519-000-0112'),
+('OW105', 'Karen', 'Martinez', 'owner', '613-000-0113'),
+('OW106', 'Michael', 'Clark', 'owner', '613-111-0102'),
+('OW107', 'Jessica', 'Hernandez', 'owner', '226-222-0103');
+
+-- Property Managers
+INSERT INTO Person (ID, fName, lName, role, phoneNumber) VALUES
+('PM200', 'Bob', 'Smith', 'property manager', '519-000-0200'),
+('PM201', 'Charles', 'Brown', 'property manager', '613-000-0201'),
+('PM204', 'James', 'Ford', 'property manager', '613-000-0222'),
+('PM205', 'Brian', 'Kim', 'property manager', '518-000-0223'),
+('PM206', 'Samantha', 'Moore', 'property manager', '613-333-0202'),
+('PM207', 'Alexander', 'Lee', 'property manager', '519-444-0203');
+
+-- Students
+INSERT INTO Person (ID, fName, lName, role, phoneNumber) VALUES
+('ST300', 'Alice', 'Johnson', 'student', '519-000-0300'),
+('ST301', 'Chris', 'Martin', 'student', '226-000-0301'),
+('ST304', 'Lucy', 'Nguyen', 'student', '613-000-0332'),
+('ST305', 'Evan', 'Rodriguez', 'student', '614-000-0333'),
+('ST306', 'Emma', 'Thompson', 'student', '519-123-4567'),
+('ST307', 'Oliver', 'Williams', 'student', '226-234-5678'),
+('ST308', 'Sophie', 'Brown', 'student', '613-345-6789'),
+('ST309', 'Liam', 'Davis', 'student', '647-456-7890'),
+('ST310', 'Ava', 'Miller', 'student', '416-567-8901'),
+('ST311', 'Isabella', 'Wilson', 'student', '905-678-9012'),
+('ST312', 'Elijah', 'Moore', 'student', '289-789-0123'),
+('ST313', 'Charlotte', 'Taylor', 'student', '705-890-1234'),
+('ST314', 'Noah', 'Anderson', 'student', '807-901-2345'),
+('ST315', 'Mia', 'Thomas', 'student', '613-012-3456'),
+('ST316', 'Jacob', 'Jackson', 'student', '519-345-6789'),
+('ST317', 'Emily', 'White', 'student', '226-456-7890'),
+('ST318', 'Daniel', 'Harris', 'student', '613-567-8901'),
+('ST319', 'Abigail', 'Martin', 'student', '647-678-9012');
+
+
+-- Inserting Property Managers into PropertyManager Table
+INSERT INTO PropertyManager (ManagerID, startYear) VALUES
+('PM200', 2023),
+('PM201', 2023),
+('PM204', 2024),
+('PM205', 2024),
+('PM206', 2024),
+('PM207', 2024);
+
+
+-- Inserting Rental Properties
+INSERT INTO RentalProperty (PropertyID, Street, City, Province, PostalCode, NumberOfBedrooms, NumberOfBathrooms, Parking, Laundry, Accessibility, ListingDate, CostPerMonth, PropertyType) VALUES
+(1, '22 Baker St', 'Kingston', 'ON', 'K1A2B3', 4, 2, 'yes', 'ensuite', 'no', '2023-01-15', 2000, 'house'),
+(2, '48 Queen St', 'Kingston', 'ON', 'K1A3B4', 2, 1, 'no', 'shared', 'yes', '2023-02-01', 1200, 'apartment'),
+(3, '5 King St', 'Kingston', 'ON', 'K1A4C5', 1, 1, 'yes', 'shared', 'no', '2023-03-10', 800, 'room'),
+(4, '35 Maple St', 'Kingston', 'ON', 'K1A5D4', 5, 3, 'yes', 'ensuite', 'yes', '2023-03-20', 2500, 'house'),
+(5, '67 Cedar St', 'Kingston', 'ON', 'K1A6E5', 1, 1, 'no', 'shared', 'yes', '2023-04-10', 700, 'apartment'),
+(6, '89 Elm St', 'Kingston', 'ON', 'K1A7F6', 2, 2, 'yes', 'shared', 'no', '2023-05-05', 1400, 'apartment'),
+(7, '110 Willow St', 'Kingston', 'ON', 'K2B3C7', 3, 2, 'yes', 'shared', 'yes', '2023-06-15', 1800, 'house'),
+(8, '210 Pine St', 'Kingston', 'ON', 'K2B4D8', 2, 1, 'no', 'shared', 'no', '2023-07-01', 900, 'apartment'),
+(9, '310 Oak St', 'Kingston', 'ON', 'K2B5E9', 1, 1, 'yes', 'ensuite', 'yes', '2023-08-05', 800, 'room'),
+(10, '123 Spruce St', 'Kingston', 'ON', 'K2C6H1', 3, 1, 'yes', 'shared', 'no', '2023-08-20', 1500, 'house'),
+(11, '456 Birch St', 'Kingston', 'ON', 'K2C7J2', 2, 2, 'no', 'ensuite', 'yes', '2023-09-01', 1300, 'apartment'),
+(12, '789 Walnut St', 'Kingston', 'ON', 'K2C8K3', 4, 2, 'yes', 'ensuite', 'yes', '2023-09-15', 2200, 'house'),
+(13, '1012 Cherry St', 'Kingston', 'ON', 'K2D9L4', 1, 1, 'no', 'shared', 'no', '2023-10-01', 750, 'room'),
+(14, '1314 Aspen St', 'Kingston', 'ON', 'K2D0M5', 3, 3, 'yes', 'shared', 'yes', '2023-10-20', 1900, 'apartment'),
+(15, '1516 Oak Lane', 'Kingston', 'ON', 'K2E1N6', 2, 1, 'no', 'shared', 'yes', '2023-11-05', 1000, 'apartment'),
+(16, '1718 Pine Grove', 'Kingston', 'ON', 'K2F2O7', 3, 2, 'yes', 'ensuite', 'no', '2023-11-20', 1700, 'house'),
+(17, '1920 Maple Ave', 'Kingston', 'ON', 'K2G3P8', 4, 3, 'yes', 'ensuite', 'yes', '2023-12-01', 2300, 'house'),
+(18, '2022 Beech St', 'Kingston', 'ON', 'K2H4R1', 2, 1, 'no', 'shared', 'yes', '2024-01-10', 950, 'apartment'),
+(19, '2224 Alder Rd', 'Kingston', 'ON', 'K2J5S2', 1, 1, 'yes', 'shared', 'no', '2024-02-15', 800, 'room'),
+(20, '2426 Cedar Ct', 'Kingston', 'ON', 'K2K6T3', 3, 2, 'yes', 'ensuite', 'yes', '2024-03-01', 2100, 'house');
+
+-- House Specifics
+INSERT INTO House (HouseID, FencedYard, Attached) VALUES
+(1, 'yes', 'detached'),
+(4, 'no', 'detached'),
+(7, 'no', 'semi-detached'),
+(10, 'yes', 'detached'),
+(12, 'yes', 'detached'),
+(16, 'no', 'detached'),
+(17, 'no', 'semi-detached');
+
+-- Apartment Specifics
+INSERT INTO Apartment (ApartmentID, Floor, Elevator) VALUES
+(2, 3, 'yes'),
+(5, 2, 'no'),
+(6, 12, 'yes'),
+(8, 4, 'yes'),
+(11, 1, 'no'),
+(14, 5, 'yes'),
+(15, 3, 'no');
+
+
+-- Room Specifics
+INSERT INTO Room (RoomID, NumberOfHousemates, KitchenPrivileges, Furnishings) VALUES
+(3, 3, 'yes', 'Bed, Desk, Chair'),
+(9, 2, 'no', 'Couch, Table'),
+(13, 5, 'yes', 'Bed, Desk, Chair, TV'),
+(18, 5, 'yes', 'Bed, Desk, Chair, TV'),
+(19, 5, 'yes', 'Bed, Desk, Chair, TV'),
+(20, 5, 'yes', 'Bed, Desk, Chair');
+
+
+-- Owners for Properties
+INSERT INTO Owner (OwnerID) VALUES
+('OW100'), ('OW101'), ('OW102'), ('OW103'), ('OW104'), ('OW105'), ('OW106'), ('OW107');
+
+
+-- Property Managers for Properties
+INSERT INTO PropertyManagerRentalRelation (ManagerID, PropertyID) VALUES
+('PM200', 1), ('PM201', 2), ('PM204', 7), ('PM205', 8), ('PM206', 4), ('PM207',5), ('PM207', 9), ('PM201', 12), ('PM204', 13), ('PM205', 15), ('PM206', 16), ('PM207', 18),('PM207', 19);
+
+
+
+-- Inserting Rental Groups
+INSERT INTO RentalGroup (GroupCode, DesiredPropertyType, DesiredNumberOfBedrooms, DesiredNumberOfBathrooms, ParkingPreference, LaundryPreference, MaxPrice, AccessibilityPreference) VALUES
+(1003, 'house', 3, 2, 'yes', 'shared', 1900, 'yes'),
+(1004, 'room', 1, 1, 'yes', 'ensuite', 800, 'no'),
+(1005, 'apartment', 2, 1, 'no', 'shared', 1200, 'no'),
+(1006, 'apartment', 2, 1, 'no', 'shared', 1550, 'yes'),
+(1007, 'room', 1, 1, 'no', 'ensuite', 850, 'yes'),
+(1008, 'house', 4, 2, 'yes', 'ensuite', 2500, 'yes'),
+(1009, 'house', 5, 3, 'yes', 'ensuite', 3250, 'yes');
+
+
+-- Inserting Student Renters
+INSERT INTO StudentRenter (StudentRenterID, StudentNum, ExpectedGraduationYear, ProgramOfStudy, GroupCode) VALUES
+('ST300', 20210006, 2024, 'Computer Science', 1003),
+('ST301', 20210007, 2025, 'Business', 1003),
+('ST304', 20210008, 2026, 'Art', 1003),
+('ST305', 20210009, 2026, 'Biology', 1004),
+('ST306', 20183310, 2026, 'Engineering', 1005),
+('ST307', 20200121, 2025, 'Life Science', 1005),
+('ST308', 20210010, 2024, 'Engineering', 1006),
+('ST309', 20200111, 2024, 'Math', 1006),
+('ST310', 20210110, 2025, 'Nursing', 1007),
+('ST311', 20210012, 2026, 'Nursing', 1008),
+('ST312', 20210013, 2026, 'Nursing', 1008),
+('ST313', 20210014, 2026, 'Biology', 1008),
+('ST314', 20210015, 2026, 'Health Science', 1008),
+('ST315', 20210016, 2024, 'Engineering', 1009),
+('ST316', 20210017, 2025, 'Computer Science', 1009),
+('ST317', 20210018, 2024, 'History', 1009),
+('ST318', 20210019, 2026, 'Engineering', 1009),
+('ST319', 20210020, 2026, 'Philosophy', 1009);
+
+-- Inserting into StudentRentalGroupRelation
+INSERT INTO StudentRentalGroupRelation (StudentNum, GroupCode) VALUES
+(20210006, 1003), -- For Alice Johnson
+(20210007, 1003), -- For Chris Martin
+(20210008, 1003), -- For Lucy Nguyen
+(20210009, 1004), -- For Evan Rodriguez
+(20183310, 1005), -- For Emma Thompson
+(20200121, 1005), -- For Oliver Williams
+(20210010, 1006), -- For Sophie Brown
+(20200111, 1006), -- For Liam Davis
+(20210110, 1007), -- For Ava Miller
+(20210012, 1008), -- For Isabella Wilson
+(20210013, 1008), -- For Elijah Moore
+(20210014, 1008), -- For Charlotte Taylor
+(20210015, 1008), -- For Noah Anderson
+(20210016, 1009), -- For Mia Thomas
+(20210017, 1009), -- For Jacob Jackson
+(20210018, 1009), -- For Emily White
+(20210019, 1009), -- For Daniel Harris
+(20210020, 1009); -- For Abigail Martin
+
+-- Inserting into PropertyOwnerRelation
+INSERT INTO PropertyOwnerRelation (PropertyID, OwnerID) VALUES 
+(1,'OW106'), (1,'OW107'), 
+(2,'OW107'),
+(3,'OW100'),
+(4,'OW100'),
+(5,'OW101'),
+(6,'OW102'),
+(7,'OW103'),(7,'OW104'),
+(8,'OW105'),
+(9,'OW104'),
+(10,'OW102'), (10,'OW107'), 
+(11,'OW104'),
+(12,'OW100'),
+(13,'OW101'),
+(14,'OW102'),
+(15,'OW102'),
+(16,'OW103'),(16,'OW101'),
+(17,'OW105'),
+(18,'OW104'),
+(19,'OW105'),
+(20,'OW104');
+
+
+-- Inserting Rental Agreements
+INSERT INTO RentalAgreement (GroupCode, PropertyID, StartDate, EndDate, MonthlyRent) VALUES
+(1003, 7, '2023-09-01', '2024-08-31', 1800),
+(1004, 18, '2023-10-01', '2024-09-30', 750),
+(1005, 2, '2023-04-01', '2024-03-31', 1200),
+(1006, 6, '2023-04-01', '2024-03-31', 1400),
+(1007, 3, '2023-04-01', '2024-01-31', 800),
+(1008, 1, '2024-04-01', '2025-03-31', 2000),
+(1009, 1, '2023-04-01', '2025-03-31', 2500);
+
+
+

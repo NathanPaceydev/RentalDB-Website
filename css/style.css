@@ -1,0 +1,108 @@
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    background: #f4f4f4;
+    color: #333;
+  }
+  
+  h1 {
+    color: #333;
+  }
+  
+  table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    background: #ffffff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  th,
+  td {
+    padding: 12px 15px;
+    border-right: 1px solid #dddddd;
+  }
+  
+  th:first-child,
+  td:first-child {
+    border-left: 1px solid #dddddd;
+  }
+  
+  th {
+    background-color: #555555;
+    color: #ffffff;
+    font-weight: bold;
+  }
+  
+  tr:nth-child(even) {
+    background-color: #f3f3f3;
+  }
+  
+  tr:hover {
+    background-color: #ddd;
+    cursor: pointer;
+  }
+  
+  a {
+    color: #555;
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  
+  .footer {
+    margin-top: 30px;
+    text-align: center;
+  }
+  
+  /* Add responsiveness to the table */
+  @media screen and (max-width: 600px) {
+    table {
+      width: 100%;
+      display: block;
+      overflow-x: auto;
+    }
+  }
+  
+
+  /* Icon styling */
+.icon {
+  width: 20px; /* Set a smaller width */
+  vertical-align: middle; /* Align with the text */
+  margin-right: 5px; /* Space between icon and text */
+}
+
+
+
+/* Feature section styling */
+.feature {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px; /* Adjust the space between feature sections */
+}
+
+.feature-icon, .icon {
+  margin-right: 10px; /* Adjust space between icon and text */
+  width: 40px; /* Adjust the icon size */
+  height: auto; /* Maintain aspect ratio */
+}
+
+h3 {
+  margin: 0 0 0 10px; /* Add space on the left of the header */
+}
+
+
+
+/* Housing image styling */
+#logo {
+  width: 100%; /* Full width of its container */
+  height: 400px; /* Set a fixed, smaller height for a "slice" effect */
+  object-fit: cover; /* Cover the container without stretching the image */
+  display: block;
+  margin: 0 auto; /* Center the image if necessary */
+}
+
